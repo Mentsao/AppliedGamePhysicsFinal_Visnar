@@ -10,74 +10,52 @@ public class Dot : MonoBehaviour
     [Header("Settings")]
     public float fieldOfView = 45f;
     public float viewDistance = 15f;
+    public float rotationSpeed = 3f;
 
     [Header("Debug")]
-    public bool insideFOV = false;
-    public bool hasLineOfSight = false;
+    public bool insideFOV;
+    public bool hasLineOfSight;
 
     void Update()
     {
-        CheckIfPlayerIsInFront();
-        CheckFieldOfView();
-        CheckLineOfSight();
-        UpdateDirectionUI();
+        Vector3 toPlayer = (player.position - transform.position).normalized;
+
+        insideFOV = IsInsideFOV(toPlayer);
+        hasLineOfSight = HasLineOfSight(toPlayer);
+
+        UpdateDirectionUI(toPlayer);
 
         if (insideFOV && hasLineOfSight)
-        {
-            RotateTowardPlayer();
-        }
+            RotateTowardPlayer(toPlayer);
     }
 
-    void CheckIfPlayerIsInFront()
+    bool IsInsideFOV(Vector3 toPlayer)
     {
-        Vector3 toPlayer = (player.position - transform.position).normalized;
-        float dot = Vector3.Dot(transform.forward, toPlayer);
-
-        // Player is in front if dot > 0
-        insideFOV = dot > Mathf.Cos(fieldOfView * Mathf.Deg2Rad);
-    }
-
-    void CheckFieldOfView()
-    {
-        Vector3 toPlayer = (player.position - transform.position).normalized;
         float dot = Vector3.Dot(transform.forward, toPlayer);
         float threshold = Mathf.Cos(fieldOfView * Mathf.Deg2Rad);
-
-        insideFOV = dot > threshold;
+        return dot > threshold;
     }
 
-    void CheckLineOfSight()
+    bool HasLineOfSight(Vector3 toPlayer)
     {
-        Vector3 dir = (player.position - transform.position).normalized;
-        RaycastHit hit;
+        if (Physics.Raycast(transform.position, toPlayer, out RaycastHit hit, viewDistance))
+            return hit.transform == player;
 
-        if (Physics.Raycast(transform.position, dir, out hit, viewDistance))
-        {
-            if (hit.transform == player)
-            {
-                hasLineOfSight = true;
-                return;
-            }
-        }
-
-        hasLineOfSight = false;
+        return false;
     }
 
-   
-    void RotateTowardPlayer()
+
+    void RotateTowardPlayer(Vector3 toPlayer)
     {
-        Vector3 lookDir = player.position - transform.position;
+        Vector3 lookDir = toPlayer;
         lookDir.y = 0;
-
         Quaternion targetRot = Quaternion.LookRotation(lookDir);
-        transform.rotation = Quaternion.Lerp(transform.rotation, targetRot, Time.deltaTime * 3f);
+        transform.rotation = Quaternion.Lerp(transform.rotation, targetRot, Time.deltaTime * rotationSpeed);
     }
 
-    
-    void UpdateDirectionUI()
-    {
-        Vector3 toPlayer = (player.position - transform.position).normalized;
 
+    void UpdateDirectionUI(Vector3 toPlayer)
+    {
         float dot = Vector3.Dot(transform.forward, toPlayer);
         Vector3 cross = Vector3.Cross(transform.forward, toPlayer);
 
@@ -91,7 +69,7 @@ public class Dot : MonoBehaviour
             directionText.text = "PLAYER RIGHT";
     }
 
-    
+
     void OnDrawGizmos()
     {
         if (player == null) return;
